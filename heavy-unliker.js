@@ -1,5 +1,5 @@
 /**
- * Instagram Like Remover - "Heavy Duty 100" 🚛
+ * Instagram Like Remover - "Heavy Duty 100" 
  * 1. Batch Size: 100 (Aggressive).
  * 2. Scroller: Universal Brute-Force (Scrolls entire page structure).
  * 3. Crash Recovery: Ignores stuck spinners to prevent freezing.
@@ -26,7 +26,7 @@
 
   // --- CRASH-PROOF LOADING CHECK ---
   const waitForLoadingGone = async () => {
-    console.log('⏳ Checking for loading spinner...')
+    console.log('Checking for loading spinner...')
     
     // Timeout set to 20s. If it takes longer, we assume a crash and move on.
     const maxWaitTime = 20000 
@@ -42,7 +42,7 @@
         }
         await randomDelay(1000, 1500)
     }
-    console.log('⚠️ Spinner stuck (Server Crash?). Ignoring and forcing next batch.')
+    console.log('Spinner stuck (Server Crash?). Ignoring and forcing next batch.')
   }
 
   const findButtonXRay = (textOptions) => {
@@ -68,7 +68,7 @@
 
   // --- BRUTE FORCE SCROLLER ---
   const scrollEverything = async () => {
-    console.log('🌪️ Force Scrolling everything...')
+    console.log('Force Scrolling everything...')
     const targets = [window, document.documentElement, document.body, document.querySelector('main')]
     const allDivs = document.querySelectorAll('div')
     for (const div of allDivs) {

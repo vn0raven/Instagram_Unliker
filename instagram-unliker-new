@@ -1,0 +1,149 @@
+(async function() {
+  const BATCH_SIZE = 20; 
+  let totalProcessed = 0;
+  let emptyScrolls = 0;
+  const MAX_SCROLLS = 3; 
+
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const tapLeftEdge = (element) => {
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    const x = rect.left + (rect.width * 0.2);
+    const y = rect.top + (rect.height / 2);
+
+    let target = document.elementFromPoint(x, y) || element;
+
+    const opts = { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y, buttons: 1 };
+    target.dispatchEvent(new PointerEvent('pointerdown', opts));
+    target.dispatchEvent(new MouseEvent('mousedown', opts));
+    target.dispatchEvent(new PointerEvent('pointerup', opts));
+    target.dispatchEvent(new MouseEvent('mouseup', opts));
+    target.dispatchEvent(new MouseEvent('click', opts));
+    try { target.click(); } catch(e) {}
+  };
+
+  console.log('Starting infinite cleaner with smart-loading feature...');
+
+  while (true) {
+    // 1. Enter Select Mode
+    let checkboxes = document.querySelectorAll('[aria-label="Toggle checkbox"]');
+    if (checkboxes.length === 0) {
+      const allEls = document.querySelectorAll('*');
+      for (let el of allEls) {
+          if (el.innerText && el.innerText.trim().toLowerCase() === 'select') {
+              tapLeftEdge(el);
+              await sleep(1000); 
+              break;
+          }
+      }
+    }
+
+    checkboxes = document.querySelectorAll('[aria-label="Toggle checkbox"]');
+    if (checkboxes.length === 0) {
+      emptyScrolls++;
+      if (emptyScrolls >= MAX_SCROLLS) {
+          console.log('No more posts found after scrolling multiple times. We are completely done.');
+          break;
+      }
+      
+      console.log(`No posts visible. Scrolling down... (Scroll ${emptyScrolls}/${MAX_SCROLLS})`);
+      window.scrollBy(0, window.innerHeight);
+      
+      // --- SMART WAIT LOADING FEATURE ---
+      console.log('Waiting for Instagram to load new posts...');
+      let waitTime = 0;
+      let newPostsLoaded = false;
+      const MAX_WAIT_MS = 10000; // Will wait up to 10 seconds for the network
+      
+      while (waitTime < MAX_WAIT_MS) {
+          await sleep(500); // Check every half second
+          waitTime += 500;
+          
+          let checkAgain = document.querySelectorAll('[aria-label="Toggle checkbox"]');
+          if (checkAgain.length > 0) {
+              newPostsLoaded = true;
+              console.log(`Loaded successfully! Took about ${waitTime/1000} seconds.`);
+              break;
+          }
+      }
+      
+      if (!newPostsLoaded) {
+          console.log('Network timeout or end of list reached for this scroll.');
+      }
+      // ----------------------------------
+      
+      continue; // Go back to the top of the loop and try again
+    }
+    
+    emptyScrolls = 0; // Reset scroll counter when posts are found
+
+    // 2. Click Checkboxes
+    let selectedThisRound = 0;
+    for (let i = 0; i < checkboxes.length; i++) {
+      if (selectedThisRound >= BATCH_SIZE) break;
+
+      tapLeftEdge(checkboxes[i]);
+      selectedThisRound++;
+      await sleep(250); 
+    }
+
+    if (selectedThisRound === 0) break;
+
+    console.log(`Selected ${selectedThisRound} posts. Total queued: ${totalProcessed + selectedThisRound}`);
+    await sleep(600); 
+
+    // 3. Find Bottom Action Bar
+    let bottomBar = null;
+    const buttons = document.querySelectorAll('div[role="button"][aria-label="Unlike"]');
+    for (let btn of buttons) {
+      const rect = btn.getBoundingClientRect();
+      if (rect.top > window.innerHeight * 0.7) {
+          bottomBar = btn;
+          break;
+      }
+    }
+
+    if (!bottomBar) {
+      console.error('Could not find the bottom action button.');
+      break;
+    }
+
+    // 4. Retry Loop for Bottom Button
+    let confirmBtn = null;
+    let attempts = 0;
+
+    while (!confirmBtn && attempts < 5) {
+      console.log(`Tapping bottom bar (Attempt ${attempts + 1})...`);
+      tapLeftEdge(bottomBar);
+      await sleep(1000); 
+
+      const allEls = document.querySelectorAll('*');
+      for (let el of allEls) {
+         if (el.offsetParent !== null && el.innerText && el.innerText.trim().toLowerCase() === 'unlike') {
+             const rect = el.getBoundingClientRect();
+             if (rect.top > window.innerHeight * 0.2 && rect.top < window.innerHeight * 0.7) {
+                 confirmBtn = el;
+                 break;
+             }
+         }
+      }
+      attempts++;
+    }
+
+    // 5. Confirm Popup
+    if (confirmBtn) {
+      console.log('Found popup. Tapping confirm...');
+      tapLeftEdge(confirmBtn);
+      totalProcessed += selectedThisRound;
+      console.log(`Success. Cleared ${totalProcessed} posts so far.`);
+      
+      await sleep(2500); 
+    } else {
+      console.error('Popup never appeared. Stopping script.');
+      break;
+    }
+  }
+
+  console.log(`Finished run. Total posts cleared: ${totalProcessed}`);
+})();
